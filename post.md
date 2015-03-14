@@ -42,6 +42,8 @@ $ docker-compose up -d
 
 At this stage, our developer has everything up and running in local.
 
+![Efficiant development workfow using Git submodules and Docker Compose](http://i.imgur.com/i65giSK.jpg)
+
 ## How-To
 
 Let's now develop on how-to setup the described workflow.
