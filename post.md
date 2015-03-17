@@ -209,7 +209,9 @@ Your cpanel should be available on http://localhost:8002.
 
 ### Local Routing
 
-After running all the containers using `docker-compose up -d`, we can access our applications on `http://localhost:<application_port>`. With the current setup, we could easily make local routing happen using [`jwilder/nginx-proxy`](https://github.com/jwilder/nginx-proxy) in a way that we could access local applications with URLs reflecting more what's in production. For instance, we could access the local version of `http://api.domain.com` directly by typing `http://api.domain.local`. Here's how.
+After running all the containers using `docker-compose up -d`, we can access our applications on `http://localhost:<application_port>`. With the current setup, we could easily make local routing happen using [`jwilder/nginx-proxy`](https://github.com/jwilder/nginx-proxy) in a way that we could access local applications with URLs reflecting more what's in production. For instance, we could access the local version of `http://api.domain.com` directly by typing `http://api.domain.local`.
+
+The [`jwilder/nginx-proxy`](https://github.com/jwilder/nginx-proxy) image makes things pretty straight forward. Just create describe a new container in your `docker-compose.yml` that we will call `nginx`. Configure the container as described in [`jwilder/nginx-proxy`](https://github.com/jwilder/nginx-proxy)'s README (mount your Docker daemon socket, expose port 80). Then, you only have to add the extra environment variables `VIRTUAL_HOST` and `VIRTUAL_PORT` to your existing containers, as follow:
 
 ```yaml
 api:
@@ -253,7 +255,19 @@ cpanel:
     - "8002:8002"
   links:
     - api
+nginx:
+  image: jwilder/nginx-proxy
+  volumes:
+    - /var/run/docker.sock:/tmp/docker.sock
+  ports:
+    - "80:80"
 ```
+
+The `nginx` container will check all the containers running on the Docker daemon (through the mounted `docker.sock` file) and create appropriate nginx config file for each container that have the `VIRTUAL_HOST` environment variable setup.
+
+To finish setting up the local routing as we wish, we now have to add all the VIRTUAL_HOST we used to our `/etc/hosts`. To do so, I manually use the node.js `hostile` package, but I guess this could be automated the same way [`jwilder/nginx-proxy`](https://github.com/jwilder/nginx-proxy) dynamically works with nginx config files. To be digged.
+
+You can know `docker-compose up -d` again and access your application on the same url as they are in production, replacing the `.com` TLD with the `.local` TLD.
 
 ## Suggestions?
 
