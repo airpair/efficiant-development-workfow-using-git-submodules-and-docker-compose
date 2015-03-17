@@ -14,7 +14,7 @@ Before going on with further details on the how, I would like to directly show y
 
 Each project has its own Team on Bitbucket (same as an Organization on Github). We then create one repository per application (e.g. `api`, `dashboard`, `cpanel`) within this Team. In addition to those, we create a repository called `development`. Along the submodules, we only have a `README.md` and a `docker-compose.yml` in the `development` repository. It looks like this:
 
-```
+```bash
 kytwb@continuous:~/path/to/<project>/$ ls -la
 total 40
 drwxrwxr-x 11 kytwb amine 4096 Mar 14 16:30 .
@@ -30,7 +30,7 @@ drwxrwxr-x  9 kytwb amine 4096 Mar 14 16:30 .git
 
 To get to quickly setup, when a new developer join a project, we ask him to browse to the `development` repository on Bitbucket and to follow the instructions in the `README.md`. The instructions are as follow:
 
-```
+``` bash
 $ git -v
 $ docker -v
 $ docker-compose -v
@@ -50,7 +50,7 @@ Let's now develop on how-to setup the described workflow.
 
 ### Prerequistes
 
-```
+``` bash
 $ git -v
 $ docker -v
 $ docker-compose
@@ -66,13 +66,13 @@ Same here, [installing Docker Compose](http://docs.docker.com/compose/install/) 
 
 As we said earlier, you have to create a `development` repository and a repository per application. Here we will also create `api`, `dashboard` and `cpanel`. When these repositories are created, we focus on setting up the `development` repositories.
 
-```
-git clone git@bitbucket.com:<project>/development.git <project> && cd <project>
+``` bash
+$ git clone git@bitbucket.com:<project>/development.git <project> && cd <project>
 ```
 
 We are now going to add our applications repositories as submodules of the `development` repository. To do so, just type the following command lines:
 
-```
+``` bash
 $ git submodule add git@bitbucket.org:<project>/api.git
 $ git submodule add git@bitbucket.org:<project>/dashboard.git
 $ git submodule add git@bitbucket.org:<project>/cpanel.git
@@ -80,7 +80,7 @@ $ git submodule add git@bitbucket.org:<project>/cpanel.git
 
 This will have for effect to create a `.gitmodules` file at the root of your `development` repository. That's how the developers are able to fetch all the applications at once when cloning the `development` repository and running:
 
-```
+``` bash
 $ git submodule init && git submodule update
 ```
 
@@ -92,7 +92,7 @@ We now have our `development` repository setup with access to all the different 
 
 Let's start with the `api` application. Open `docker-compose.yml`, declare a container for the API and choose a base image for your container. In our case, our stack being based on Node.js we will just use the official Node.js image:
 
-```yaml
+```
 api:
   image: dockerfile/nodejs
 ```
@@ -184,20 +184,19 @@ Same as you did with your API configuration file for the database, you can know 
 
 Now you can run `docker-compose up -d` again, followed by `docker-compose ps`:
 
-```
+``` bash
 kytwb@continuous:~/path/to/<project>$ docker-compose up -d
 Recreating <project>_database_1...
 Recreating <project>_api_1...
 Creating <project>_dashboard_1...
 Creating <project>_cpanel_1...
 kytwb@continuous:~/path/to/<project>$ docker-compose ps
-docker-compose ps
-     Name                   Command              State                Ports            
+Name                    Command              State      Ports           
 --------------------------------------------------------------------------------------
-<project>_api_1         npm start                     Up         0.0.0.0:8000->8000/tcp
-<project>_dashboard_1   npm start                     Up         0.0.0.0:8001->8001/tcp
-<project>_cpanel_1      npm start                     Up         0.0.0.0:8002->8002/tcp
-<project>_database_1    /usr/local/bin/run            Up         0.0.0.0:5432->5432/tcp  
+<project>_api_1         npm start            Up         0.0.0.0:8000->8000/tcp
+<project>_dashboard_1   npm start            Up         0.0.0.0:8001->8001/tcp
+<project>_cpanel_1      npm start            Up         0.0.0.0:8002->8002/tcp
+<project>_database_1    /usr/local/bin/run   Up         0.0.0.0:5432->5432/tcp  
 ```
 
 Things should be up and running.  
