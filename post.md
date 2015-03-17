@@ -86,7 +86,7 @@ $ git submodule init && git submodule update
 
 For more information about submodules, refer to [the official Git documentation](http://git-scm.com/book/en/v2/Git-Tools-Submodules).
 
-### Containerize all the things ™
+### Dockerize all the things ™
 
 We now have our `development` repository setup with access to all the different applications one `cd` away. We are now going to containerize all the applications and configure them thanks to the orchestration tool we previously mentionned: Docker Compose.
 
