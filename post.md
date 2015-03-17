@@ -66,16 +66,140 @@ Same here, [installing Docker Compose](http://docs.docker.com/compose/install/) 
 
 As we said earlier, you have to create a `development` repository and a repository per application. Here we will also create `api`, `dashboard` and `cpanel`. When these repositories are created, we focus on setting up the `development` repositories.
 
+```
+git clone git@bitbucket.com:<project>/development.git <project> && cd <project>
+```
 
 We are now going to add our applications repositories as submodules of the `development` repository. To do so, just type the following command lines:
 
 ```
-$ git submodule add api
-$ git submodule add dashboard
-$ git submodule add cpanel
+$ git submodule add git@bitbucket.org:<project>/api.git
+$ git submodule add git@bitbucket.org:<project>/dashboard.git
+$ git submodule add git@bitbucket.org:<project>/cpanel.git
 ```
 
+This will have for effect to create a `.gitmodules` file at the root of your `development` repository. That's how the developers are able to fetch all the applications at once when cloning the `development` repository and running:
+
+```
+$ git submodule init && git submodule update
+```
+
+For more information about submodules, refer to [the official Git documentation](http://git-scm.com/book/en/v2/Git-Tools-Submodules).
+
 ### Containerize all the things ™
+
+We now have our `development` repository setup with access to all the different applications one `cd` away. We are now going to containerize all the applications and configure them thanks to the orchestration tool we previously mentionned: Docker Compose.
+
+Let's start with the `api` application. Open `docker-compose.yml`, declare a container for the API and choose a base image for your container. In our case, our stack being based on Node.js we will just use the official Node.js image:
+
+```yaml
+api:
+  image: dockerfile/nodejs
+```
+
+At this stage, running the command `docker-compose up -d` should create a container called `<project>_api_1` that does nothing (instant exit). You can run `docker-compose ps` to get informations about the containers orchestrated by your `docker-compose.yml`.
+
+Let's configure the `api` container a little be more so it can be functionnal.  
+To achieve so, we have to:
+
+- mount the source code within the container
+- declare which command to run to run the application
+- expose appropriate port(s) to access the application
+
+That translates into:
+
+```yaml
+api:
+  image: dockerfile/nodejs
+  volumes:
+    - ./api/:/app/
+  working_dir: /app/
+  command: npm start
+  ports:
+    - "8000:8000"
+```
+
+By running `docker-compose up -d` now, you should have your `api` application up and running on `http://localhost:8000`. It might crash for many reasons; feel free to check the container logs with `docker-compsoe logs api`.  
+At this stage, I suspect the `api` crashing because it can't connect to its database. So let's add a `database` container and make it available to our `api` container.
+
+```yaml
+api:
+  image: dockerfile/nodejs
+  volumes:
+    - ./api/:/app/
+  working_dir: /app/
+  command: npm start
+  ports:
+    - "8000:8000"
+  links:
+    - database
+database:
+  image: postgresql
+  ports:
+    - "5432:5432"
+```
+
+By creating the `database` container and linking it to the `api` one, we made discovery of the `database` possible within the `api`. Try to display the environment of your API (e.g. `console.log(process.env)`) and you should be able to see variables such as `POSTGRES_1_PORT_5432_TCP_ADDR` and `POSTGRES_1_PORT_5432_TCP_PORT`. This is the variables you will use in the API config files related to your database.
+
+The database, through the link, is now considered a dependecy of the api. It means Docker Compose will always start the database container before starting the api container.
+
+We are now going to describe the other applications the same way we did for the API. This time, we will link the `api` to the `dashboard` and `cpanel` app so they can both resolve the API container address/port through the environment variables `API_1_PORT_8000_TCP_ADDR` and `API_1_PORT_8000_TCP_PORT`.
+
+```yaml
+api:
+  image: dockerfile/nodejs
+  volumes:
+    - ./api/:/app/
+  working_dir: /app/
+  command: npm start
+  ports:
+    - "8000:8000"
+  links:
+    - database
+database:
+  image: postgresql
+dashboard:
+  image: dockerfile/nodejs
+  volumes:
+    - ./dashboard/:/app/
+  working_dir: /app/
+  command: npm start
+  ports:
+    - "8001:8001"
+  links:
+    - api
+cpanel:
+  image: dockerfile/nodejs
+  volumes:
+    - ./api/:/app/
+  working_dir: /app/
+  command: npm start
+  ports:
+    - "8002:8002"
+  links:
+    - api
+```
+
+Same as you did with your API configuration file for the database, you can know edit the dashboard and cpanel applications to use the environment variables to resolve the API instead of having it hardcoded.
+
+Now you can run `docker-compose up -d` again, followed by `docker-compose ps`:
+
+```
+kytwb@continuous:~/path/to/<project>$ docker-compose up -d
+kytwb@continuous:~/path/to/<project>$ docker-compose ps
+docker-compose ps
+     Name                   Command              State                Ports            
+--------------------------------------------------------------------------------------
+<project>_api_1         npm start                     Up         0.0.0.0:8000->8000/tcp
+<project>_dashboard_1   npm start                     Up         0.0.0.0:8001->8001/tcp
+<project>_cpanel_1      npm start                     Up         0.0.0.0:8002->8002/tcp
+<project>_database_1    /usr/local/bin/run            Up         0.0.0.0:5432->5432/tcp  
+```
+
+Things should be up and running.  
+Your api should be available on http://localhost:8000.  
+Your dashboard should be available on http://localhost:8001.  
+Your cpanel should be available on http://localhost:8002.
 
 ## Going Further
 
@@ -83,10 +207,50 @@ $ git submodule add cpanel
 
 After running all the containers using `docker-compose up -d`, we can access our applications on `http://localhost:<application_port>`. With the current setup, we could easily make local routing happen using [`jwilder/nginx-proxy`](https://github.com/jwilder/nginx-proxy) in a way that we could access local applications with URLs reflecting more what's in production. For instance, we could access the local version of `http://api.domain.com` directly by typing `http://api.domain.local`. Here's how.
 
+```yaml
+api:
+  image: dockerfile/nodejs
+  volumes:
+    - ./api/:/app/
+  working_dir: /app/
+  command: npm start
+  environment:
+    - VIRTUAL_HOST=api.domain.local
+    - VIRTUAL_PORT=8000
+  ports:
+    - "8000:8000"
+  links:
+    - database
+database:
+  image: postgresql
+dashboard:
+  image: dockerfile/nodejs
+  volumes:
+    - ./dashboard/:/app/
+  working_dir: /app/
+  command: npm start
+  environment:
+    - VIRTUAL_HOST=dashboard.domain.local
+    - VIRTUAL_PORT=8001
+  ports:
+    - "8001:8001"
+  links:
+    - api
+cpanel:
+  image: dockerfile/nodejs
+  volumes:
+    - ./api/:/app/
+  working_dir: /app/
+  command: npm start
+  environment:
+    - VIRTUAL_HOST=cpanel.domain.local
+    - VIRTUAL_PORT=8002
+  ports:
+    - "8002:8002"
+  links:
+    - api
+```
+
 ## Suggestions?
 
 This post being published on airpair, feel free to fork it and contribute by adding your own suggestions for the Going Further section. If you see any mistakes in what I previously wrote, same, feel free to correct.
-
-
-
-
