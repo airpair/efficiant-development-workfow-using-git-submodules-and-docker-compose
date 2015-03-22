@@ -192,7 +192,8 @@ Creating <project>_dashboard_1...
 Creating <project>_cpanel_1...
 kytwb@continuous:~/path/to/<project>$ docker-compose ps
 Name                    Command              State      Ports           
---------------------------------------------------------------------------------------
+_____________________________________________________________________________________
+
 <project>_api_1         npm start            Up         0.0.0.0:8000->8000/tcp
 <project>_dashboard_1   npm start            Up         0.0.0.0:8001->8001/tcp
 <project>_cpanel_1      npm start            Up         0.0.0.0:8002->8002/tcp
